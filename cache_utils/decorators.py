@@ -1,10 +1,12 @@
-#coding: utf-8
+# -*- coding: utf-8 -*-
+
 import logging
 
 from cache_utils.utils import _cache_key, _func_info, _func_type, sanitize_memcached_key
 
-from django.core import signals
+from django.core.cache import caches
 from django.utils.functional import wraps
+
 
 logger = logging.getLogger("cache_utils")
 
@@ -23,41 +25,27 @@ def cached(timeout, group=None, backend=None, key=None):
     same arguments as function and the result for these arguments will be
     invalidated.
     """
-
-
     if key:
         def test(*args, **kwargs):
             args = list(args)
-            args[0] = key 
+            args[0] = key
             return sanitize_memcached_key(_cache_key(*args, **kwargs))
         _get_key = test
-        
+
     else:
         _get_key = lambda *args, **kwargs: sanitize_memcached_key(_cache_key(*args, **kwargs))
-
 
     if group:
         backend_kwargs = {'group': group}
     else:
         backend_kwargs = {}
 
-
-    try:
-        from django.core.cache import caches
-        if backend:
-            cache_backend = caches[backend]
-        else:
-            cache_backend = caches['default']
-    except ImportError:  # Django < 1.7
-        from django.core.cache import get_cache
-        if backend:
-            cache_backend = get_cache(backend)
-        else:
-            cache_backend = get_cache('default')
-
+    if backend:
+        cache_backend = caches[backend]
+    else:
+        cache_backend = caches['default']
 
     def _cached(func):
-
         func_type = _func_type(func)
 
         @wraps(func)
@@ -67,7 +55,7 @@ def cached(timeout, group=None, backend=None, key=None):
             # try to get the value from cache
             key = _get_key(wrapper._full_name, func_type, args, kwargs)
             value = cache_backend.get(key, **backend_kwargs)
-            
+
             # in case of cache miss recalculate the value and put it to the cache
             if value is None:
                 logger.debug("Cache MISS: %s" % key)
@@ -76,11 +64,11 @@ def cached(timeout, group=None, backend=None, key=None):
                 logger.debug("Cache SET: %s" % key)
             else:
                 logger.debug("Cache HIT: %s" % key)
-            
+
             return value
 
         def invalidate(*args, **kwargs):
-            """ 
+            """
             Invalidates cache result for function called with passed arguments
             """
             if not hasattr(wrapper, '_full_name'):
