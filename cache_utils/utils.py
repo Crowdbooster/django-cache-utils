@@ -1,4 +1,5 @@
 from hashlib import md5
+import inspect
 
 from django.utils.encoding import smart_text
 import six
@@ -64,11 +65,25 @@ def _func_info(func, args):
     return name, args[1:]
 
 
-def _cache_key(func_name, func_type, args, kwargs):
+def _cache_key(func_name, func_type, args, kwargs, filter_args_kwargs=None):
     """ Construct readable cache key """
+    if filter_args_kwargs and inspect.isfunction(filter_args_kwargs):
+        args, kwargs = filter_args_kwargs(args, kwargs)
+
     if func_type == 'function':
         args_string = _args_to_unicode(args, kwargs)
     else:
         args_string = _args_to_unicode(args[1:], kwargs)
 
     return '[cached]%s(%s)' % (func_name, args_string,)
+
+
+def pick(keys, _dict):
+    """
+    Returns a new dictionary based on `_dict`,
+    restricting keys to those in the iterable `keys`.
+    """
+
+    key_set = set(keys) & set(_dict.keys())
+
+    return {key: _dict[key] for key in key_set}

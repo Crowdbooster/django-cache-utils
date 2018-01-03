@@ -11,7 +11,8 @@ from django.utils.functional import wraps
 logger = logging.getLogger("cache_utils")
 
 
-def cached(timeout, group=None, backend=None, key=None):
+def cached(timeout, group=None, backend=None, key=None,
+           filter_args_kwargs=None):
     """ Caching decorator. Can be applied to function, method or classmethod.
     Supports bulk cache invalidation and invalidation for exact parameter
     set. Cache keys are human-readable because they are constructed from
@@ -24,16 +25,35 @@ def cached(timeout, group=None, backend=None, key=None):
     Wrapped callable gets `invalidate` methods. Call `invalidate` with
     same arguments as function and the result for these arguments will be
     invalidated.
+
+    filter_args_kwargs: callable that receives args, kwargs (list, dict)
+                        and returns the new args and kwargs. Those are
+                        combined with function name to get the final key.
+        E.g.
+            def filter_args_kwargs(args, kwargs):
+                return [args[0], args[3]], {kwargs['foo'], kwargs['bar']}
     """
     if key:
         def test(*args, **kwargs):
             args = list(args)
             args[0] = key
-            return sanitize_memcached_key(_cache_key(*args, **kwargs))
+            return sanitize_memcached_key(
+                _cache_key(
+                    *args,
+                    filter_args_kwargs=filter_args_kwargs,
+                    **kwargs
+                )
+            )
         _get_key = test
 
     else:
-        _get_key = lambda *args, **kwargs: sanitize_memcached_key(_cache_key(*args, **kwargs))
+        _get_key = lambda *args, **kwargs: sanitize_memcached_key(
+            _cache_key(
+                *args,
+                filter_args_kwargs=filter_args_kwargs,
+                **kwargs
+            )
+        )
 
     if group:
         backend_kwargs = {'group': group}

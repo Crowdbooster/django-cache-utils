@@ -5,7 +5,12 @@ from unittest import TestCase
 from django.core.cache import cache
 
 from cache_utils.decorators import cached
-from cache_utils.utils import sanitize_memcached_key, _func_type, _func_info
+from cache_utils.utils import (
+    sanitize_memcached_key,
+    _func_type,
+    _func_info,
+    pick
+)
 
 
 def foo(a, b):
@@ -55,14 +60,14 @@ class FuncInfoTest(TestCase):
         self.assertEqual(info[1], args_out)
 
     def test_func(self):
-        self.assertFuncInfo(foo, [1, 2], 'cache_utils.tests.foo:11', [1, 2])
+        self.assertFuncInfo(foo, [1, 2], 'cache_utils.tests.foo:16', [1, 2])
 
     def test_method(self):
         foo_obj = Foo()
-        self.assertFuncInfo(Foo.foo, [foo_obj, 1, 2], 'cache_utils.tests.Foo.foo:17', [1, 2])
+        self.assertFuncInfo(Foo.foo, [foo_obj, 1, 2], 'cache_utils.tests.Foo.foo:22', [1, 2])
 
     def test_classmethod(self):
-        self.assertFuncInfo(Foo.bar, [Foo, 1], 'cache_utils.tests.Foo.bar:20', [1])
+        self.assertFuncInfo(Foo.bar, [Foo, 1], 'cache_utils.tests.Foo.bar:25', [1])
 
 
 class SanitizeTest(TestCase):
@@ -186,3 +191,32 @@ class DecoratorTest(ClearMemcachedTest):
 
         key = bar.get_cache_key(2, foo='hello')
         self.assertEqual(key, "[cached]func_with_args((2,){'foo':'hello'})")
+
+    def test_cache_key(self):
+        """Test that given a custom list of arguments, you use that
+        to form the name."""
+
+        def fn(args, kwargs):
+            return [], {}
+
+        cached_foo = cached(60, filter_args_kwargs=fn)(foo)
+
+        key = cached_foo.get_cache_key(2, 3)
+        self.assertEqual(key, "[cached]cache_utils.tests.foo:16()")
+
+        key = cached_foo.get_cache_key(a=2, b=3)
+        self.assertEqual(key, "[cached]cache_utils.tests.foo:16()")
+
+        def fn2(args, kwargs):
+            return args[:1], pick(['b'], kwargs)
+
+        cached_foo2 = cached(60, filter_args_kwargs=fn2)(foo)
+
+        key = cached_foo2.get_cache_key(2, 3)
+        self.assertEqual(key, "[cached]cache_utils.tests.foo:16((2,))")
+
+        key = cached_foo2.get_cache_key(a=2, b=3)
+        self.assertEqual(key, "[cached]cache_utils.tests.foo:16({'b':3})")
+
+        key = cached_foo2.get_cache_key(2, b=3)
+        self.assertEqual(key, "[cached]cache_utils.tests.foo:16((2,){'b':3})")
