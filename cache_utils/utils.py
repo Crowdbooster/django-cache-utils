@@ -68,7 +68,7 @@ def _func_info(func, args):
 def _cache_key(func_name, func_type, args, kwargs, filter_args_kwargs=None):
     """ Construct readable cache key """
     if filter_args_kwargs and inspect.isfunction(filter_args_kwargs):
-        args, kwargs = filter_args_kwargs(args, kwargs)
+        args, kwargs = filter_args_kwargs(*args, **kwargs)
 
     if func_type == 'function':
         args_string = _args_to_unicode(args, kwargs)

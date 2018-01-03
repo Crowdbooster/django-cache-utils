@@ -196,7 +196,7 @@ class DecoratorTest(ClearMemcachedTest):
         """Test that given a custom list of arguments, you use that
         to form the name."""
 
-        def fn(args, kwargs):
+        def fn(*args, **kwargs):
             return [], {}
 
         cached_foo = cached(60, filter_args_kwargs=fn)(foo)
@@ -207,16 +207,28 @@ class DecoratorTest(ClearMemcachedTest):
         key = cached_foo.get_cache_key(a=2, b=3)
         self.assertEqual(key, "[cached]cache_utils.tests.foo:16()")
 
-        def fn2(args, kwargs):
-            return args[:1], pick(['b'], kwargs)
+        def fn2(*args, **kwargs):
+            a, b = None, None
+            if args:
+                if len(args) == 1:
+                    a = args[0]
+                if len(args) == 2:
+                    a, b = args
+            if kwargs:
+                if 'a' in kwargs:
+                    a = kwargs['a']
+                if 'b' in kwargs:
+                    b = kwargs['b']
+
+            return tuple(filter(None, [a, b])), {}
 
         cached_foo2 = cached(60, filter_args_kwargs=fn2)(foo)
 
         key = cached_foo2.get_cache_key(2, 3)
-        self.assertEqual(key, "[cached]cache_utils.tests.foo:16((2,))")
+        self.assertEqual(key, "[cached]cache_utils.tests.foo:16((2,3))")
 
         key = cached_foo2.get_cache_key(a=2, b=3)
-        self.assertEqual(key, "[cached]cache_utils.tests.foo:16({'b':3})")
+        self.assertEqual(key, "[cached]cache_utils.tests.foo:16((2,3))")
 
         key = cached_foo2.get_cache_key(2, b=3)
-        self.assertEqual(key, "[cached]cache_utils.tests.foo:16((2,){'b':3})")
+        self.assertEqual(key, "[cached]cache_utils.tests.foo:16((2,3))")
