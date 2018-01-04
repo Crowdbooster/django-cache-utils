@@ -10,6 +10,7 @@ dependencies:
     - pyenv install -s 3.6.3
     - pyenv global 3.6.3
     - pip install --upgrade pip setuptools
+    - pip install Django==1.10 django_redis python_memcached
 
 test:
   override:
