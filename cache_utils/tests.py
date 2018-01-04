@@ -172,12 +172,12 @@ class DecoratorTest(ClearMemcachedTest):
         self.assertEqual(my_func(u"Ы"*500), u"5"+u"Ы"*500)
         self.assertEqual(my_func(u"Ы"*500), u"5"+u"Ы"*500)
 
-    def test_key_override(self):
+    def test_fn_key(self):
         """
         Test the cache key naming.
         """
 
-        @cached(60*5, key='foo')
+        @cached(60*5, fn_key='foo')
         def foo():
             return 'test'
 
@@ -185,50 +185,43 @@ class DecoratorTest(ClearMemcachedTest):
         self.assertEqual(key, '[cached]foo()')
 
         # Now test with args and kwargs argo
-        @cached(60*5, key='func_with_args')
+        @cached(60*5, fn_key='func_with_args')
         def bar(i, foo='bar'):
             return i * 5
 
         key = bar.get_cache_key(2, foo='hello')
         self.assertEqual(key, "[cached]func_with_args((2,){'foo':'hello'})")
 
-    def test_cache_key(self):
+    def test_key(self):
         """Test that given a custom list of arguments, you use that
         to form the name."""
+        def normalize_url(url):
+            return url.rstrip('/').replace('https://', 'http://').lower()
+        url = 'http://Example.Com'
 
-        def fn(*args, **kwargs):
-            return [], {}
+        @cached(60, key=normalize_url, fn_key='foo_func')
+        def foo(url):
+            return 'test'
 
-        cached_foo = cached(60, filter_args_kwargs=fn)(foo)
+        key = foo.get_cache_key(url)
+        self.assertEqual(
+            key,
+            "[cached]foo_func({})".format(normalize_url(url))
+        )
 
-        key = cached_foo.get_cache_key(2, 3)
-        self.assertEqual(key, "[cached]cache_utils.tests.foo:16()")
+        @cached(60, key=normalize_url, fn_key=lambda fn: fn.__name__ + 'bar')
+        def foo(url):
+            return 'test'
+        key = foo.get_cache_key(url)
+        self.assertEqual(
+            key,
+            "[cached]foobar({})".format(normalize_url(url))
+        )
 
-        key = cached_foo.get_cache_key(a=2, b=3)
-        self.assertEqual(key, "[cached]cache_utils.tests.foo:16()")
+    def test_key_can_return_any_python_value(self):
+        @cached(60, key=lambda x, y: x * y, fn_key='foo')
+        def foo(a, b):
+            return a + b
 
-        def fn2(*args, **kwargs):
-            a, b = None, None
-            if args:
-                if len(args) == 1:
-                    a = args[0]
-                if len(args) == 2:
-                    a, b = args
-            if kwargs:
-                if 'a' in kwargs:
-                    a = kwargs['a']
-                if 'b' in kwargs:
-                    b = kwargs['b']
-
-            return tuple(filter(None, [a, b])), {}
-
-        cached_foo2 = cached(60, filter_args_kwargs=fn2)(foo)
-
-        key = cached_foo2.get_cache_key(2, 3)
-        self.assertEqual(key, "[cached]cache_utils.tests.foo:16((2,3))")
-
-        key = cached_foo2.get_cache_key(a=2, b=3)
-        self.assertEqual(key, "[cached]cache_utils.tests.foo:16((2,3))")
-
-        key = cached_foo2.get_cache_key(2, b=3)
-        self.assertEqual(key, "[cached]cache_utils.tests.foo:16((2,3))")
+        key = foo.get_cache_key(2, 3)
+        self.assertEqual(key, "[cached]foo(6)")

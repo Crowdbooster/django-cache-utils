@@ -1,5 +1,4 @@
 from hashlib import md5
-import inspect
 
 from django.utils.encoding import smart_text
 import six
@@ -7,6 +6,8 @@ import six
 
 CONTROL_CHARACTERS = set([chr(i) for i in range(0, 33)])
 CONTROL_CHARACTERS.add(chr(127))
+
+PREFIX = '[cached]'
 
 
 def sanitize_memcached_key(key, max_length=250):
@@ -25,7 +26,7 @@ def sanitize_memcached_key(key, max_length=250):
     return key
 
 
-def _args_to_unicode(args, kwargs):
+def _args_to_unicode(*args, **kwargs):
     key = ""
     if args:
         key += smart_text(args)
@@ -65,11 +66,14 @@ def _func_info(func, args):
     return name, args[1:]
 
 
-def _cache_key(func_name, func_type, args, kwargs, filter_args_kwargs=None):
-    """ Construct readable cache key """
-    if filter_args_kwargs and inspect.isfunction(filter_args_kwargs):
-        args, kwargs = filter_args_kwargs(*args, **kwargs)
+def _get_hashable_args(func_type, *args, **kwargs):
+    if func_type == 'function':
+        return args, kwargs
+    return args[1:], kwargs
 
+
+def _cache_key(func_name, func_type, args, kwargs):
+    """ Construct readable cache key """
     if func_type == 'function':
         args_string = _args_to_unicode(args, kwargs)
     else:
