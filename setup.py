@@ -25,6 +25,10 @@ class TestCommand(Command):
                     'BACKEND': 'cache_utils.group_backend.CacheClass',
                     'LOCATION': '127.0.0.1:11211',
                 },
+                'redis': {
+                    'BACKEND': 'django_redis.cache.RedisCache',
+                    'LOCATION': 'redis://localhost:6379/0',
+                }
             },
             DATABASES={
                 'default': {
