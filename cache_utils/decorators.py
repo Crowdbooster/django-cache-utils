@@ -44,7 +44,7 @@ def cached(timeout, group=None, backend=None,
             else:
                 fn_str = str(fn_key)
         else:
-            fn_str, _ = _func_info(fn, args)
+            fn_str, _ = _func_info(fn, *args)
         args_str = str(key(*new_args, **new_kwargs))
         return sanitize_memcached_key(
             '%s%s(%s)' % (PREFIX, fn_str, args_str)

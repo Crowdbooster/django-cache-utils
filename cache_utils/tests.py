@@ -5,11 +5,11 @@ from unittest import TestCase
 from django.core.cache import cache
 
 from cache_utils.decorators import cached
+
 from cache_utils.utils import (
     sanitize_memcached_key,
     _func_type,
     _func_info,
-    pick
 )
 
 
@@ -55,19 +55,19 @@ class FuncTypeTest(TestCase):
 class FuncInfoTest(TestCase):
 
     def assertFuncInfo(self, func, args_in, name, args_out):
-        info = _func_info(func, args_in)
+        info = _func_info(func, *args_in)
         self.assertEqual(info[0], name)
         self.assertEqual(info[1], args_out)
 
     def test_func(self):
-        self.assertFuncInfo(foo, [1, 2], 'cache_utils.tests.foo:16', [1, 2])
+        self.assertFuncInfo(foo, [1, 2], 'cache_utils.tests.foo:16', (1, 2))
 
     def test_method(self):
         foo_obj = Foo()
-        self.assertFuncInfo(Foo.foo, [foo_obj, 1, 2], 'cache_utils.tests.Foo.foo:22', [1, 2])
+        self.assertFuncInfo(Foo.foo, [foo_obj, 1, 2], 'cache_utils.tests.Foo.foo:22', (1, 2))
 
     def test_classmethod(self):
-        self.assertFuncInfo(Foo.bar, [Foo, 1], 'cache_utils.tests.Foo.bar:25', [1])
+        self.assertFuncInfo(Foo.bar, [Foo, 1], 'cache_utils.tests.Foo.bar:25', (1,))
 
 
 class SanitizeTest(TestCase):

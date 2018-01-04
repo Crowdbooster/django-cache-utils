@@ -46,7 +46,7 @@ def _func_type(func):
     return 'function'
 
 
-def _func_info(func, args):
+def _func_info(func, *args):
     ''' introspect function's or method's full name.
     Returns a tuple (name, normalized_args,) with
     'cls' and 'self' removed from normalized_args '''
@@ -70,24 +70,3 @@ def _get_hashable_args(func_type, *args, **kwargs):
     if func_type == 'function':
         return args, kwargs
     return args[1:], kwargs
-
-
-def _cache_key(func_name, func_type, args, kwargs):
-    """ Construct readable cache key """
-    if func_type == 'function':
-        args_string = _args_to_unicode(args, kwargs)
-    else:
-        args_string = _args_to_unicode(args[1:], kwargs)
-
-    return '[cached]%s(%s)' % (func_name, args_string,)
-
-
-def pick(keys, _dict):
-    """
-    Returns a new dictionary based on `_dict`,
-    restricting keys to those in the iterable `keys`.
-    """
-
-    key_set = set(keys) & set(_dict.keys())
-
-    return {key: _dict[key] for key in key_set}
