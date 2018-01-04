@@ -63,8 +63,6 @@ def cached(timeout, group=None, backend=None,
     def _cached(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            full_name(*args)
-
             # try to get the value from cache
             key = _get_key(func, *args, **kwargs)
             value = cache_backend.get(key, **backend_kwargs)
@@ -84,8 +82,6 @@ def cached(timeout, group=None, backend=None,
             """
             Invalidates cache result for function called with passed arguments
             """
-            full_name(*args)
-
             key = _get_key(func, *args, **kwargs)
             cache_backend.delete(key, **backend_kwargs)
             logger.debug("Cache DELETE: %s" % key)
@@ -94,24 +90,15 @@ def cached(timeout, group=None, backend=None,
             """
             Forces a call to the function & sets the new value in the cache
             """
-            full_name(*args)
-
             key = _get_key(func, *args, **kwargs)
             value = func(*args, **kwargs)
             cache_backend.set(key, value, timeout, **backend_kwargs)
             return value
 
-        def full_name(*args):
-            # full name is stored as attribute on first call
-            if not hasattr(wrapper, '_full_name'):
-                name, _args = _func_info(func, args)
-                wrapper._full_name = name
-
         def require_cache(*args, **kwargs):
             """
             Only pull from cache, do not attempt to calculate
             """
-            full_name(*args)
             key = _get_key(func, *args, **kwargs)
             logger.debug("Require cache %s" % key)
             value = cache_backend.get(key, **backend_kwargs)
@@ -122,7 +109,6 @@ def cached(timeout, group=None, backend=None,
 
         def get_cache_key(*args, **kwargs):
             """ Returns name of cache key utilized """
-            full_name(*args)
             key = _get_key(func, *args, **kwargs)
             return key
 
