@@ -71,14 +71,21 @@ def cached(timeout, group=None, backend=None,
         cache_backend = caches['default']
 
     def _cached(func):
-        fn_key_str = str(
+        fn_key_str = (
             fn_key(func)
             if callable(fn_key)
             else fn_key
         )
 
+        if not isinstance(fn_key_str, str):
+            raise TypeError(
+                'fn_key, or the result of calling it must be a str'
+            )
+
         if not fn_key_str:
-            raise ValueError('fn_key must be non-empty')
+            raise ValueError(
+                'fn_key, or the result of calling it must be non-empty'
+            )
 
         def _get_key(*args, **kwargs):
             args_str = serialize(key(*args, **kwargs))

@@ -166,6 +166,28 @@ class DecoratorTest(ClearMemcachedTest):
             "[cached]foobar({})".format(normalize_url(url))
         )
 
+    def test_invalid_non_str_key(self):
+        with self.assertRaises(TypeError):
+            @cached(60, fn_key=1)
+            def foo(x):
+                return x
+
+        with self.assertRaises(TypeError):
+            @cached(60, fn_key=lambda fn: 1)
+            def bar(x):
+                return x
+
+    def test_invalid_blank_str_key(self):
+        with self.assertRaises(ValueError):
+            @cached(60, fn_key='')
+            def foo(x):
+                return x
+
+        with self.assertRaises(ValueError):
+            @cached(60, fn_key=lambda fn: '')
+            def bar(x):
+                return x
+
     def test_key_can_return_any_python_value(self):
         @cached(60, key=lambda x, y: x * y, fn_key='foo')
         def foo(a, b):
