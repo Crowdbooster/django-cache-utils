@@ -5,8 +5,7 @@
 
 django-cache-utils provides utils for make cache-related work easier:
 
-* `cached` decorator. It can be applied to function, method or classmethod
-  and can be used with any django cache backend (built-in or third-party like
+* `cached` function decorator. Can be used with any django cache backend (built-in or third-party like
   django-newcache).
 
   Supports fine-grained invalidation for exact parameter set (with any backend)
@@ -105,24 +104,8 @@ With ``group_backend`` `cached` decorator supports bulk O(1) invalidation::
 from django.db import models
 from cache_utils.decorators import cached
 
-class CityManager(models.Manager):
-
-    # cache a method result. 'self' parameter is ignored
-    @cached(60*60*24, 'cities')
-    def default(self):
-        return self.active()[0]
-
-    # cache a method result. 'self' parameter is ignored, args and
-    # kwargs are used to construct cache key
-    @cached(60*60*24, 'cities')
-    def get(self, *args, **kwargs):
-        return super(CityManager, self).get(*args, **kwargs)
-
-
 class City(models.Model):
     # ... field declarations
-
-    objects = CityManager()
 
     # an example how to cache django model methods by instance id
     def has_offers(self):

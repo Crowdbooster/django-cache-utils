@@ -4,12 +4,14 @@ from unittest import TestCase
 
 from django.core.cache import cache
 
-from cache_utils.decorators import cached
+from cache_utils.decorators import (
+    cached,
+    legacy_key,
+    legacy_fn_key,
+)
 
 from cache_utils.utils import (
     sanitize_memcached_key,
-    _func_type,
-    _func_info,
 )
 
 
@@ -35,39 +37,6 @@ class Store(object):
 
     def __repr__(self):
         return u'Вася'.encode('utf8')
-
-
-class FuncTypeTest(TestCase):
-
-    def assertFuncType(self, func, tp):
-        self.assertEqual(_func_type(func), tp)
-
-    def test_func(self):
-        self.assertFuncType(foo, 'function')
-
-    def test_method(self):
-        self.assertFuncType(Foo.foo, 'method')
-
-    def test_classmethod(self):
-        self.assertFuncType(Foo.bar, 'classmethod')
-
-
-class FuncInfoTest(TestCase):
-
-    def assertFuncInfo(self, func, args_in, name, args_out):
-        info = _func_info(func, *args_in)
-        self.assertEqual(info[0], name)
-        self.assertEqual(info[1], args_out)
-
-    def test_func(self):
-        self.assertFuncInfo(foo, [1, 2], 'cache_utils.tests.foo:16', (1, 2))
-
-    def test_method(self):
-        foo_obj = Foo()
-        self.assertFuncInfo(Foo.foo, [foo_obj, 1, 2], 'cache_utils.tests.Foo.foo:22', (1, 2))
-
-    def test_classmethod(self):
-        self.assertFuncInfo(Foo.bar, [Foo, 1], 'cache_utils.tests.Foo.bar:25', (1,))
 
 
 class SanitizeTest(TestCase):
@@ -124,22 +93,6 @@ class InvalidationTest(ClearMemcachedTest):
         self.assertEqual(my_func(3, 2), 3)
         self.assertEqual(my_func(3, 2), 3)
 
-    def test_method_invalidation(self):
-        self.call_count = 0
-        this = self
-
-        class Foo(object):
-            @cached(60)
-            def bar(self, x):
-                this.call_count += 1
-                return this.call_count
-
-        foo = Foo()
-        self.assertEqual(foo.bar(1), 1)
-        self.assertEqual(foo.bar(1), 1)
-        Foo.bar.invalidate(1)
-        self.assertEqual(foo.bar(1), 2)
-
     def test_invalidate_nonexisting(self):
         @cached(60)
         def foo(x):
@@ -172,7 +125,7 @@ class DecoratorTest(ClearMemcachedTest):
         self.assertEqual(my_func(u"Ы"*500), u"5"+u"Ы"*500)
         self.assertEqual(my_func(u"Ы"*500), u"5"+u"Ы"*500)
 
-    def test_fn_key(self):
+    def test_key(self):
         """
         Test the cache key naming.
         """
@@ -182,7 +135,7 @@ class DecoratorTest(ClearMemcachedTest):
             return 'test'
 
         key = foo.get_cache_key()
-        self.assertEqual(key, '[cached]foo()')
+        self.assertEqual(key, '[cached]foo(((), {}))')
 
         # Now test with args and kwargs argo
         @cached(60*5, fn_key='func_with_args')
@@ -191,6 +144,25 @@ class DecoratorTest(ClearMemcachedTest):
 
         key = bar.get_cache_key(2, foo='hello')
         self.assertEqual(key, "[cached]func_with_args((2,){'foo':'hello'})")
+
+    def test_legacy_key(self):
+        # Now test with args and kwargs argo
+        @cached(60*5, fn_key=legacy_fn_key, key=legacy_key)
+        def bar(i, foo='bar'):
+            return i * 5
+
+        key = bar.get_cache_key(2, foo='hello')
+        self.assertEqual(key, "[cached]cache_utils.tests.bar:150((2,){'foo':'hello'})")
+
+        self.assertEqual(
+            bar.get_cache_key(),
+            "[cached]cache_utils.tests.bar:150()"
+        )
+
+        self.assertEqual(
+            bar.get_cache_key(foo='hello'),
+            "[cached]cache_utils.tests.bar:150({'foo':'hello'})"
+        )
 
     def test_key(self):
         """Test that given a custom list of arguments, you use that
