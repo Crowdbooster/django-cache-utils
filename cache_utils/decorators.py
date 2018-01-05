@@ -3,6 +3,7 @@
 import logging
 
 from django.core.cache import caches
+from django.utils.encoding import smart_text
 from django.utils.functional import wraps
 
 from cache_utils.utils import (
@@ -29,9 +30,9 @@ def legacy_key(*args, **kwargs):
     of django-cache-utils"""
     k = ''
     if args:
-        k += serialize(args)
+        k += smart_text(args)
     if kwargs:
-        k += serialize(kwargs)
+        k += smart_text(kwargs)
     return k
 
 
