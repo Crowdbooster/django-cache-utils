@@ -1,38 +1,17 @@
 machine:
+  python:
+    version: 3.6.3
   services:
     - memcached
-  pre:
-    - cd .pyenv; git pull
-  post:
-    - pyenv install 2.7.13 --skip-existing
-    - pyenv install 3.3.6 --skip-existing
-    - pyenv install 3.4.6 --skip-existing
-    - pyenv install 3.5.3 --skip-existing
-    - pyenv install 3.6.1 --skip-existing
-    - pyenv global 2.7.13 3.3.6 3.4.6 3.5.3 3.6.1
-    - pip install --upgrade virtualenv
 
 dependencies:
-  override:
-    - pip install tox
+  pre:
+    - sudo apt-get install libmemcached-dev
+    - pyenv install -s 3.6.3
+    - pyenv global 3.6.3
+    - pip install --upgrade pip setuptools
+    - pip install Django==1.10 django_redis python_memcached
 
 test:
   override:
-    - tox -e py27-dj18
-    - tox -e py27-dj19
-    - tox -e py27-dj110
-    - tox -e py27-dj111
-
-    - tox -e py33-dj18
-
-    - tox -e py34-dj18
-    - tox -e py34-dj19
-    - tox -e py34-dj110
-    - tox -e py34-dj111
-
-    - tox -e py35-dj18
-    - tox -e py35-dj19
-    - tox -e py35-dj110
-    - tox -e py35-dj111
-
-    - tox -e py36-dj111
+    - python setup.py test

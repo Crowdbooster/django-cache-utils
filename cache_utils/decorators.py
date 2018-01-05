@@ -2,17 +2,51 @@
 
 import logging
 
-from cache_utils.utils import _cache_key, _func_info, _func_type, sanitize_memcached_key
-
 from django.core.cache import caches
+from django.utils.encoding import smart_text
 from django.utils.functional import wraps
+
+from cache_utils.utils import (
+    serialize,
+    sanitize_memcached_key,
+    PREFIX,
+)
+import six
 
 
 logger = logging.getLogger("cache_utils")
 
 
-def cached(timeout, group=None, backend=None, key=None):
-    """ Caching decorator. Can be applied to function, method or classmethod.
+def default_key(*args, **kwargs):
+    return args, kwargs
+
+
+def default_fn_key(func):
+    return ".".join([func.__module__, func.__qualname__])
+
+
+def legacy_key(*args, **kwargs):
+    """Used to generate the same cache keys as previous versions
+    of django-cache-utils"""
+    k = ''
+    if args:
+        k += smart_text(args)
+    if kwargs:
+        k += smart_text(kwargs)
+    return k
+
+
+def legacy_fn_key(func):
+    """Used to generate the same function cache key as previous
+    versions of django-cache-utils"""
+    lineno = ":%s" % six.get_function_code(func).co_firstlineno
+    return ".".join([func.__module__, func.__name__]) + lineno
+
+
+def cached(timeout, group=None, backend=None,
+           fn_key=default_fn_key,
+           key=default_key):
+    """ Caching function decorator.
     Supports bulk cache invalidation and invalidation for exact parameter
     set. Cache keys are human-readable because they are constructed from
     callable's full name and arguments and then sanitized to make
@@ -25,15 +59,6 @@ def cached(timeout, group=None, backend=None, key=None):
     same arguments as function and the result for these arguments will be
     invalidated.
     """
-    if key:
-        def test(*args, **kwargs):
-            args = list(args)
-            args[0] = key
-            return sanitize_memcached_key(_cache_key(*args, **kwargs))
-        _get_key = test
-
-    else:
-        _get_key = lambda *args, **kwargs: sanitize_memcached_key(_cache_key(*args, **kwargs))
 
     if group:
         backend_kwargs = {'group': group}
@@ -46,16 +71,33 @@ def cached(timeout, group=None, backend=None, key=None):
         cache_backend = caches['default']
 
     def _cached(func):
-        func_type = _func_type(func)
+        fn_key_str = (
+            fn_key(func)
+            if callable(fn_key)
+            else fn_key
+        )
+
+        if not isinstance(fn_key_str, str):
+            raise TypeError(
+                'fn_key, or the result of calling it must be a str'
+            )
+
+        if not fn_key_str:
+            raise ValueError(
+                'fn_key, or the result of calling it must be non-empty'
+            )
+
+        def _get_key(*args, **kwargs):
+            args_str = serialize(key(*args, **kwargs))
+            return sanitize_memcached_key(
+                '%s%s(%s)' % (PREFIX, fn_key_str, args_str)
+            )
 
         @wraps(func)
         def wrapper(*args, **kwargs):
-            full_name(*args)
-
             # try to get the value from cache
-            key = _get_key(wrapper._full_name, func_type, args, kwargs)
+            key = _get_key(*args, **kwargs)
             value = cache_backend.get(key, **backend_kwargs)
-
             # in case of cache miss recalculate the value and put it to the cache
             if value is None:
                 logger.debug("Cache MISS: %s" % key)
@@ -71,9 +113,7 @@ def cached(timeout, group=None, backend=None, key=None):
             """
             Invalidates cache result for function called with passed arguments
             """
-            full_name(*args)
-
-            key = _get_key(wrapper._full_name, 'function', args, kwargs)
+            key = _get_key(*args, **kwargs)
             cache_backend.delete(key, **backend_kwargs)
             logger.debug("Cache DELETE: %s" % key)
 
@@ -81,25 +121,16 @@ def cached(timeout, group=None, backend=None, key=None):
             """
             Forces a call to the function & sets the new value in the cache
             """
-            full_name(*args)
-
-            key = _get_key(wrapper._full_name, func_type, args, kwargs)
+            key = _get_key(*args, **kwargs)
             value = func(*args, **kwargs)
             cache_backend.set(key, value, timeout, **backend_kwargs)
             return value
-
-        def full_name(*args):
-            # full name is stored as attribute on first call
-            if not hasattr(wrapper, '_full_name'):
-                name, _args = _func_info(func, args)
-                wrapper._full_name = name
 
         def require_cache(*args, **kwargs):
             """
             Only pull from cache, do not attempt to calculate
             """
-            full_name(*args)
-            key = _get_key(wrapper._full_name, func_type, args, kwargs)
+            key = _get_key(*args, **kwargs)
             logger.debug("Require cache %s" % key)
             value = cache_backend.get(key, **backend_kwargs)
             if not value:
@@ -109,8 +140,7 @@ def cached(timeout, group=None, backend=None, key=None):
 
         def get_cache_key(*args, **kwargs):
             """ Returns name of cache key utilized """
-            full_name(*args)
-            key = _get_key(wrapper._full_name, 'function', args, kwargs)
+            key = _get_key(*args, **kwargs)
             return key
 
         wrapper.require_cache = require_cache
