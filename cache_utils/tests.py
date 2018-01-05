@@ -125,7 +125,7 @@ class DecoratorTest(ClearMemcachedTest):
         self.assertEqual(my_func(u"Ы"*500), u"5"+u"Ы"*500)
         self.assertEqual(my_func(u"Ы"*500), u"5"+u"Ы"*500)
 
-    def test_key(self):
+    def test_key_override(self):
         """
         Test the cache key naming.
         """
@@ -135,15 +135,15 @@ class DecoratorTest(ClearMemcachedTest):
             return 'test'
 
         key = foo.get_cache_key()
-        self.assertEqual(key, '[cached]foo(((), {}))')
+        self.assertEqual(key, '[cached]foo(((),{}))')
 
-        # Now test with args and kwargs argo
+        # Now test with args and kwargs
         @cached(60*5, fn_key='func_with_args')
         def bar(i, foo='bar'):
             return i * 5
 
         key = bar.get_cache_key(2, foo='hello')
-        self.assertEqual(key, "[cached]func_with_args((2,){'foo':'hello'})")
+        self.assertEqual(key, "[cached]func_with_args(((2,),{'foo':'hello'}))")
 
     def test_legacy_key(self):
         # Now test with args and kwargs argo
