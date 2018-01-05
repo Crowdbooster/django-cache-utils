@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from unittest import TestCase
 
 from django.core.cache import cache
@@ -9,34 +7,9 @@ from cache_utils.decorators import (
     legacy_key,
     legacy_fn_key,
 )
-
 from cache_utils.utils import (
     sanitize_memcached_key,
 )
-
-
-def foo(a, b):
-    pass
-
-
-class Foo(object):
-
-    def foo(self, a, b):
-        pass
-
-    @classmethod
-    def bar(cls, x):
-        pass
-
-
-class Store(object):
-    """ Class for encoding error test """
-
-    def __unicode__(self):
-        return u'Вася'
-
-    def __repr__(self):
-        return u'Вася'.encode('utf8')
 
 
 class SanitizeTest(TestCase):
@@ -146,22 +119,25 @@ class DecoratorTest(ClearMemcachedTest):
         self.assertEqual(key, "[cached]func_with_args(((2,),{'foo':'hello'}))")
 
     def test_legacy_key(self):
-        # Now test with args and kwargs argo
+        # Now test with args and kwargs
         @cached(60*5, fn_key=legacy_fn_key, key=legacy_key)
         def bar(i, foo='bar'):
             return i * 5
 
         key = bar.get_cache_key(2, foo='hello')
-        self.assertEqual(key, "[cached]cache_utils.tests.bar:150((2,){'foo':'hello'})")
+        self.assertEqual(
+            key,
+            "[cached]cache_utils.tests.bar:123((2,){'foo':'hello'})"
+        )
 
         self.assertEqual(
             bar.get_cache_key(),
-            "[cached]cache_utils.tests.bar:150()"
+            "[cached]cache_utils.tests.bar:123()"
         )
 
         self.assertEqual(
             bar.get_cache_key(foo='hello'),
-            "[cached]cache_utils.tests.bar:150({'foo':'hello'})"
+            "[cached]cache_utils.tests.bar:123({'foo':'hello'})"
         )
 
     def test_key(self):
