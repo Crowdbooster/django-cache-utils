@@ -10,6 +10,7 @@ from cache_utils.utils import (
     serialize,
     sanitize_memcached_key,
     PREFIX,
+    MISSING,
 )
 import six
 
@@ -97,9 +98,9 @@ def cached(timeout, group=None, backend=None,
         def wrapper(*args, **kwargs):
             # try to get the value from cache
             key = _get_key(*args, **kwargs)
-            value = cache_backend.get(key, **backend_kwargs)
+            value = cache_backend.get(key, default=MISSING, **backend_kwargs)
             # in case of cache miss recalculate the value and put it to the cache
-            if value is None:
+            if value is MISSING:
                 logger.debug("Cache MISS: %s" % key)
                 value = func(*args, **kwargs)
                 cache_backend.set(key, value, timeout, **backend_kwargs)
@@ -132,8 +133,8 @@ def cached(timeout, group=None, backend=None,
             """
             key = _get_key(*args, **kwargs)
             logger.debug("Require cache %s" % key)
-            value = cache_backend.get(key, **backend_kwargs)
-            if not value:
+            value = cache_backend.get(key, default=MISSING, **backend_kwargs)
+            if value is MISSING:
                 logger.info("Could not find required cache %s" % key)
                 raise NoCachedValueException
             return value

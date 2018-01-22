@@ -27,3 +27,11 @@ def sanitize_memcached_key(key, max_length=250):
 
 def serialize(value):
     return smart_text(value)
+
+
+class Missing:
+    def __repr__(self):
+        return 'MISSING'
+
+
+MISSING = Missing()

@@ -12,7 +12,7 @@ from django.conf import settings
 from django.core.cache.backends.memcached import MemcachedCache
 from django.utils.encoding import smart_str
 
-from cache_utils.utils import sanitize_memcached_key
+from cache_utils.utils import sanitize_memcached_key, MISSING
 
 
 # This prefix is appended to the group name to prevent cache key clashes.
@@ -41,8 +41,8 @@ class CacheClass(MemcachedCache):
 
     def get(self, key, version=None, default=None, group=None):
         key = self._make_key(group, key)
-        packed_value = super(CacheClass, self).get(key, default)
-        if packed_value is None:
+        packed_value = super(CacheClass, self).get(key, default=MISSING)
+        if packed_value is MISSING:
             return default
         value, refresh_time, refreshed = packed_value
         if (time.time() > refresh_time) and not refreshed:
@@ -96,8 +96,8 @@ class CacheClass(MemcachedCache):
             of operations and you want to avoid all of the extra cache hits.
         """
         key = "%s%s%s" % (_VERSION_PREFIX, _KEY_PREFIX, group)
-        hashkey = super(CacheClass, self).get(key)
-        if hashkey is None:
+        hashkey = super(CacheClass, self).get(key, default=MISSING)
+        if hashkey is MISSING:
             hashkey = str(uuid.uuid4())
             super(CacheClass, self).set(key, hashkey)
         return hashkey
