@@ -164,8 +164,6 @@ print foo.get_cache_key('test') # ==> '[cached]foo(('test',))'
 
 ### Notes
 
-If decorated function returns None cache will be bypassed.
-
 django-cache-utils use 2 reads from memcached to get a value if 'group'
 argument is passed to 'cached' decorator::
 
