@@ -10,12 +10,26 @@ from cache_utils.utils import (
     serialize,
     sanitize_memcached_key,
     PREFIX,
-    MISSING,
 )
 import six
 
 
 logger = logging.getLogger("cache_utils")
+
+
+# The Django memcached backend doesn't distinguish
+# between a cache miss and a cached None value.
+# To work around this, we replace None values with
+# a sentinel at the cache-level.
+class NoneSentinel:
+    def __repr__(self):
+        return 'MISSING'
+
+    def __eq__(self, other):
+        return isinstance(other, NoneSentinel)
+
+
+NONE_SENTINEL = NoneSentinel()
 
 
 def default_key(*args, **kwargs):
@@ -98,15 +112,24 @@ def cached(timeout, group=None, backend=None,
         def wrapper(*args, **kwargs):
             # try to get the value from cache
             key = _get_key(*args, **kwargs)
-            value = cache_backend.get(key, default=MISSING, **backend_kwargs)
+            value = cache_backend.get(key, **backend_kwargs)
             # in case of cache miss recalculate the value and put it to the cache
-            if value is MISSING:
+            if value is None:
                 logger.debug("Cache MISS: %s" % key)
                 value = func(*args, **kwargs)
-                cache_backend.set(key, value, timeout, **backend_kwargs)
+
+                value_to_persist = (
+                    NONE_SENTINEL
+                    if value is None
+                    else value
+                )
+
+                cache_backend.set(key, value_to_persist, timeout, **backend_kwargs)
                 logger.debug("Cache SET: %s" % key)
             else:
                 logger.debug("Cache HIT: %s" % key)
+                if value == NONE_SENTINEL:
+                    value = None
 
             return value
 
@@ -124,7 +147,14 @@ def cached(timeout, group=None, backend=None,
             """
             key = _get_key(*args, **kwargs)
             value = func(*args, **kwargs)
-            cache_backend.set(key, value, timeout, **backend_kwargs)
+
+            value_to_persist = (
+                NONE_SENTINEL
+                if value is None
+                else value
+            )
+
+            cache_backend.set(key, value_to_persist, timeout, **backend_kwargs)
             return value
 
         def require_cache(*args, **kwargs):
@@ -133,10 +163,13 @@ def cached(timeout, group=None, backend=None,
             """
             key = _get_key(*args, **kwargs)
             logger.debug("Require cache %s" % key)
-            value = cache_backend.get(key, default=MISSING, **backend_kwargs)
-            if value is MISSING:
+            value = cache_backend.get(key, **backend_kwargs)
+            if value is None:
                 logger.info("Could not find required cache %s" % key)
                 raise NoCachedValueException
+
+            if value == NONE_SENTINEL:
+                return None
             return value
 
         def get_cache_key(*args, **kwargs):
