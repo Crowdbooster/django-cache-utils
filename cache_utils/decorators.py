@@ -23,7 +23,7 @@ logger = logging.getLogger("cache_utils")
 # a sentinel at the cache-level.
 class NoneSentinel:
     def __repr__(self):
-        return 'MISSING'
+        return 'NONE_SENTINEL'
 
     def __eq__(self, other):
         return isinstance(other, NoneSentinel)
