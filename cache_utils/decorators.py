@@ -25,9 +25,6 @@ class NoneSentinel:
     def __repr__(self):
         return 'NONE_SENTINEL'
 
-    def __eq__(self, other):
-        return isinstance(other, NoneSentinel)
-
 
 NONE_SENTINEL = NoneSentinel()
 
@@ -128,7 +125,7 @@ def cached(timeout, group=None, backend=None,
                 logger.debug("Cache SET: %s" % key)
             else:
                 logger.debug("Cache HIT: %s" % key)
-                if value == NONE_SENTINEL:
+                if isinstance(value, NoneSentinel):
                     value = None
 
             return value
@@ -168,7 +165,7 @@ def cached(timeout, group=None, backend=None,
                 logger.info("Could not find required cache %s" % key)
                 raise NoCachedValueException
 
-            if value == NONE_SENTINEL:
+            if isinstance(value, NoneSentinel):
                 return None
             return value
 
