@@ -17,6 +17,18 @@ import six
 logger = logging.getLogger("cache_utils")
 
 
+# The Django memcached backend doesn't distinguish
+# between a cache miss and a cached None value.
+# To work around this, we replace None values with
+# a sentinel at the cache-level.
+class NoneSentinel:
+    def __repr__(self):
+        return 'NONE_SENTINEL'
+
+
+NONE_SENTINEL = NoneSentinel()
+
+
 def default_key(*args, **kwargs):
     return args, kwargs
 
@@ -102,10 +114,19 @@ def cached(timeout, group=None, backend=None,
             if value is None:
                 logger.debug("Cache MISS: %s" % key)
                 value = func(*args, **kwargs)
-                cache_backend.set(key, value, timeout, **backend_kwargs)
+
+                value_to_persist = (
+                    NONE_SENTINEL
+                    if value is None
+                    else value
+                )
+
+                cache_backend.set(key, value_to_persist, timeout, **backend_kwargs)
                 logger.debug("Cache SET: %s" % key)
             else:
                 logger.debug("Cache HIT: %s" % key)
+                if isinstance(value, NoneSentinel):
+                    value = None
 
             return value
 
@@ -123,7 +144,14 @@ def cached(timeout, group=None, backend=None,
             """
             key = _get_key(*args, **kwargs)
             value = func(*args, **kwargs)
-            cache_backend.set(key, value, timeout, **backend_kwargs)
+
+            value_to_persist = (
+                NONE_SENTINEL
+                if value is None
+                else value
+            )
+
+            cache_backend.set(key, value_to_persist, timeout, **backend_kwargs)
             return value
 
         def require_cache(*args, **kwargs):
@@ -133,9 +161,12 @@ def cached(timeout, group=None, backend=None,
             key = _get_key(*args, **kwargs)
             logger.debug("Require cache %s" % key)
             value = cache_backend.get(key, **backend_kwargs)
-            if not value:
+            if value is None:
                 logger.info("Could not find required cache %s" % key)
                 raise NoCachedValueException
+
+            if isinstance(value, NoneSentinel):
+                return None
             return value
 
         def get_cache_key(*args, **kwargs):

@@ -98,6 +98,20 @@ class DecoratorTest(ClearMemcachedTest):
         self.assertEqual(my_func(u"Ы"*500), u"5"+u"Ы"*500)
         self.assertEqual(my_func(u"Ы"*500), u"5"+u"Ы"*500)
 
+    def test_none_cached(self):
+        times_called = 0
+
+        @cached(60)
+        def fn():
+            nonlocal times_called
+            times_called += 1
+            return None
+
+        self.assertIsNone(fn())
+        self.assertEqual(times_called, 1)
+        self.assertIsNone(fn())
+        self.assertEqual(times_called, 1)
+
     def test_key_override(self):
         """
         Test the cache key naming.
@@ -127,17 +141,17 @@ class DecoratorTest(ClearMemcachedTest):
         key = bar.get_cache_key(2, foo='hello')
         self.assertEqual(
             key,
-            "[cached]cache_utils.tests.bar:123((2,){'foo':'hello'})"
+            "[cached]cache_utils.tests.bar:137((2,){'foo':'hello'})"
         )
 
         self.assertEqual(
             bar.get_cache_key(),
-            "[cached]cache_utils.tests.bar:123()"
+            "[cached]cache_utils.tests.bar:137()"
         )
 
         self.assertEqual(
             bar.get_cache_key(foo='hello'),
-            "[cached]cache_utils.tests.bar:123({'foo':'hello'})"
+            "[cached]cache_utils.tests.bar:137({'foo':'hello'})"
         )
 
     def test_key(self):
